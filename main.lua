@@ -133,7 +133,30 @@ function Enemy:update(dt)
   local x = self.x + dir.x
   local y = self.y + dir.y
 
-  local actualX, actualY, cols, len = world:move(self, x, y)
+  -- often the beasts get *super* close to going through a hole, but not quite
+  -- we can fix this by a slight adjustment: if either dimension is super-close
+  -- to being on a grid line, adjust it so it is on the grid line
+  local x_offset = x % grid_size
+  if math.abs(x_offset) < 2 then
+    if x_offset > 0 and dir.x < 0 then
+      x = x - x_offset
+    else
+      x = x + x_offset
+    end
+  end
+
+  local y_offset = y % grid_size
+  if math.abs(y_offset) < 2 then
+    if y_offset > 0 and dir.y < 0 then
+      y = y - y_offset
+    else
+      y = y + y_offset
+    end
+  end
+
+  local actualX, actualY, cols, len = world:move(self, x, y, function(item, other)
+    return "slide"
+  end)
   self.x = actualX
   self.y = actualY
 end
