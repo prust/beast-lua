@@ -15,6 +15,7 @@ local players = {}
 local blocks = {}
 local enemies = {}
 local num_lives
+local level = 1
 local player_colors = {
   {140/255, 60/255, 140/255},
   {62/255, 98/255, 187/255},
@@ -175,26 +176,7 @@ function Player:dieAndRespawn()
     love.event.quit()
   end
 
-  -- TODO: store the *initial* num_blocks x/y and use that always
-  local win_width = love.graphics.getWidth()
-  local win_height = love.graphics.getHeight()
-  local num_blocks_x = win_width / grid_size
-  local num_blocks_y = win_height / grid_size
-  
-  local x, y, items, len_items
-  x = math.random(num_blocks_x) * 32
-  y = math.random(num_blocks_y) * 32
-  items, len_items = world:queryRect(x, y, grid_size, grid_size)
-
-  -- TODO: fix this DRY; I tried to do a do-while, but it failed
-  while (len_items > 0)
-  do
-    print("found collisions", len_items, x, y)
-    x = math.random(num_blocks_x) * 32
-    y = math.random(num_blocks_y) * 32
-    items, len_items = world:queryRect(x, y, grid_size, grid_size)
-  end  
-  print("no collisions at", x, y)
+  local x, y = findEmptyGridSquare()
   
   world:update(self, x, y)
   self.x = x
@@ -285,6 +267,11 @@ function Enemy:push(other, x, y)
     end
     table.remove(enemies, ix)
     world:remove(self)
+
+    if #enemies == 0 then
+      level = level + 1
+      spawnEnemies()
+    end
   end
   return false
 end
@@ -318,19 +305,45 @@ function generateBlocks()
       -- avoid creating blocks at 1,1 or 1,2, so they don't overlap w/ the players
       if x > 1 or y > 2 then
         if math.random(6) == 1 then
-          if math.random(20) == 1 then
-            enemy = Enemy:new((x - 1) * grid_size, (y - 1) * grid_size)
-            table.insert(enemies, enemy)
-            addSprite(enemy)
-          else
-            block = Block:new((x - 1) * grid_size, (y - 1) * grid_size)
-            table.insert(blocks, block)
-            addSprite(block)
-          end
+          block = Block:new((x - 1) * grid_size, (y - 1) * grid_size)
+          table.insert(blocks, block)
+          addSprite(block)
         end
       end
     end
   end
+end
+
+function spawnEnemies()
+  local num_enemies = level * 2 + 2
+  for i = 1, num_enemies do
+    local x, y = findEmptyGridSquare()
+    enemy = Enemy:new(x, y)
+    table.insert(enemies, enemy)
+    addSprite(enemy)
+  end
+end
+
+function findEmptyGridSquare()
+  -- TODO: store the *initial* num_blocks x/y and use that always
+  local win_width = love.graphics.getWidth()
+  local win_height = love.graphics.getHeight()
+  local num_blocks_x = win_width / grid_size
+  local num_blocks_y = win_height / grid_size
+  
+  local x, y, items, len_items
+  x = math.random(num_blocks_x) * 32
+  y = math.random(num_blocks_y) * 32
+  items, len_items = world:queryRect(x, y, grid_size, grid_size)
+
+  -- TODO: fix this DRY; I tried to do a do-while, but it failed
+  while (len_items > 0)
+  do
+    x = math.random(num_blocks_x) * 32
+    y = math.random(num_blocks_y) * 32
+    items, len_items = world:queryRect(x, y, grid_size, grid_size)
+  end
+  return x, y
 end
 
 function snap(val)
@@ -384,6 +397,7 @@ function love.load()
   end
   
   generateBlocks()
+  spawnEnemies()
 end
 
 function love.update(dt)
