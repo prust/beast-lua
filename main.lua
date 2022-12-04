@@ -80,6 +80,7 @@ function Player:initialize(x, y, input, color)
   self.height = grid_size
   self.x = x
   self.y = y
+  self.pulled_block = nil
   Sprite.initialize(self)
 end
 
@@ -98,23 +99,74 @@ function Player:update(dt)
   -- user is moving slower in this dimension
   -- so snap to the grid
   if math.abs(dx) < 0.5 then
-    local dx = x % grid_size
-    if dx < (grid_size/2) then
-      x = x - dx
-    else
-      x = x + (grid_size - dx)
-    end
+    x = snap(x)
   end
   if math.abs(dy) < 0.5 then
-    local dy = y % grid_size
-    if dy < (grid_size/2) then
-      y = y - dy
+    y = snap(y)
+  end
+
+  -- pull blocks if the pull button is pressed
+  local pulled_block, pull_dest_x, pull_dest_y
+  if self.input:down('pull') and (x ~= self.x or y ~= self.y) then
+    local is_horiz = math.abs(dx) > math.abs(dy)
+    local behind_x
+    local behind_y
+    if is_horiz then
+      if dx > 0 then
+        behind_x = self.x - 1
+      else
+        behind_x = self.x + grid_size + 1
+      end
+      behind_y = self.y + grid_size / 2
     else
-      y = y + (grid_size - dy)
+      if dy > 0 then
+        behind_y = self.y - 1
+      else
+        behind_y = self.y + grid_size + 1
+      end
+      behind_x = self.x + grid_size / 2
+    end
+
+    local items, items_len = world:queryPoint(behind_x, behind_y, function(item)
+      return item.class.name == 'Block' -- reference to the class Block doesn't match!
+    end)
+
+    pulled_block = items[1]
+    if pulled_block then
+      if is_horiz then
+        pull_dest_x = pulled_block.x + (x - self.x) -- recalc dx due to snapping above
+        pull_dest_y = pulled_block.y
+      else
+        pull_dest_y = pulled_block.y + (y - self.y) -- recalc dy due to snapping above
+        pull_dest_x = pulled_block.x
+      end
     end
   end
-  
+
   self:push(nil, x, y)
+
+  -- have to pull block *after* doing the move/push, so there's room for it
+  if pulled_block then
+    local actualX, actualY, cols, len = world:move(pulled_block, pull_dest_x, pull_dest_y, function(item, other)
+      return "slide"
+    end)
+    pulled_block.x = actualX
+    pulled_block.y = actualY
+    self.pulled_block = pulled_block
+  end
+
+  -- we just *stopped* pulling a block
+  if self.pulled_block and not pulled_block then
+    local block = self.pulled_block
+    --local actualX, actualY, cols, len = 
+    world:update(block, snap(block.x), snap(block.y))--, function(item, other)
+    --   return "slide"
+    -- end)
+    print(block.y, snap(block.y), actualY) 
+    block.x = snap(block.x)--actualX
+    block.y = snap(block.y)-- actualY
+    self.pulled_block = nil
+  end
 end
 
 function Player:dieAndRespawn()
@@ -279,6 +331,16 @@ function generateBlocks()
       end
     end
   end
+end
+
+function snap(val)
+  local offset = val % grid_size
+  if offset < (grid_size / 2) then
+    val = val - offset
+  else
+    val = val + (grid_size - offset)
+  end
+  return val
 end
 
 -- game callbacks
