@@ -1,12 +1,16 @@
-local bump = require "lib.bump"
-local class = require "lib.middleclass"
-local vector = require "lib.vector"
-if arg[#arg] == "-debug" then require("mobdebug").start() end
+local bump = require "lib/bump"
+local class = require "lib/middleclass"
+local vector = require "lib/vector"
+local baton = require "lib/baton"
+
+if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
+  require("lldebugger").start()
+end
 
 -- game variables
 local is_paused = false
 local speed = 256
-local pc
+local players = {}
 local blocks = {}
 local enemies = {}
 
@@ -51,29 +55,24 @@ end
 
 -- Playable Character
 local Character = class('Character', Sprite)
-function Character:initialize()
+function Character:initialize(x, y, input)
+  self.input = input
   self.color = {255, 0, 0}
   self.width = 32
-  self.height = 50
-  self.x = 0
-  self.y = 0
+  self.height = 32
+  self.x = x
+  self.y = y
   Sprite.initialize(self)
 end
 
 function Character:update(dt)
+  self.input:update(dt)
   local x = self.x
   local y = self.y
-  if love.keyboard.isDown("right") then
-    x = x + (speed * dt)
-  elseif love.keyboard.isDown("left") then
-    x = x - (speed * dt)
-  end
-
-  if love.keyboard.isDown("down") then
-    y = y + (speed * dt)
-  elseif love.keyboard.isDown("up") then
-    y = y - (speed * dt)
-  end
+  local dx, dy = self.input:get('move')
+  print(dx, dy)
+  x = x + (dx * speed * dt)
+  y = y + (dy * speed * dt)
   
   self:push(nil, x, y)
 end
@@ -90,7 +89,8 @@ function Enemy:initialize(x, y)
 end
 
 function Enemy:update(dt)
-  local dir = vector(pc.x - self.x, pc.y - self.y)
+  -- TODO: make enemies move towards *closest* player, not *first* player
+  local dir = vector(players[1].x - self.x, players[1].y - self.y)
   dir:normalizeInplace()
   dir = dir * speed * dt
   local x = self.x + dir.x
@@ -127,7 +127,7 @@ function generateBlocks()
   local block_ix = 1
   for y = 1, num_blocks_y do
     for x = 1, num_blocks_x do
-      -- avoid creating blocks at 1,1 or 1,2, so they don't overlap w/ the pc
+      -- avoid creating blocks at 1,1 or 1,2, so they don't overlap w/ the players
       if x > 1 or y > 2 then
         if math.random(6) == 1 then
           if math.random(20) == 1 then
@@ -146,29 +146,57 @@ function generateBlocks()
 end
 
 -- game callbacks
-function love.load(arg)
+function love.load()
+  local joysticks = love.joystick.getJoysticks()
+  local num_players = #joysticks
+  if num_players == 0 then
+    num_players = 1 -- if there are no joysticks, fallback to one keyboard/mouse player
+  end
+
+  for i=1, num_players do
+    table.insert(players, Character:new(0, (i-1) * 32, baton.new({
+      controls = {
+        move_left = {'key:a', 'axis:leftx-', 'button:dpleft'},
+        move_right = {'key:d', 'axis:leftx+', 'button:dpright'},
+        move_up = {'key:w', 'axis:lefty-', 'button:dpup'},
+        move_down = {'key:s', 'axis:lefty+', 'button:dpdown'},
+        pull = {'key:space', 'button:a'},
+      },
+      pairs = {
+        move = {'move_left', 'move_right', 'move_up', 'move_down'},
+      },
+      deadzone = 0.2,
+      joystick = joysticks[i]
+    })))
+  end
+
   -- nearest neightbor & full-screen
   love.graphics.setDefaultFilter( 'nearest', 'nearest' )
   --love.window.setFullscreen(true)
   
   -- prepare simple AABB collision world w/ cell size
   world = bump.newWorld(64)
-  pc = Character:new()
-  addSprite(pc)
+  for i = 1, #players do
+    addSprite(players[i])
+  end
   
   generateBlocks()
 end
 
 function love.update(dt)
   if is_paused then return end
-  pc:update(dt)
+  for i = 1, #players do
+    players[i]:update(dt)
+  end
   for i = 1, #enemies do
     enemies[i]:update(dt)
   end
 end
 
 function love.draw()
-  pc:draw()
+  for i = 1, #players do
+    players[i]:draw()
+  end
   
   for i = 1, #blocks do
     blocks[i]:draw()
