@@ -57,7 +57,7 @@ end
 local Character = class('Character', Sprite)
 function Character:initialize(x, y, input)
   self.input = input
-  self.color = {255, 0, 0}
+  self.color = {140/255, 60/255, 140/255}
   self.width = 32
   self.height = 32
   self.x = x
@@ -70,7 +70,6 @@ function Character:update(dt)
   local x = self.x
   local y = self.y
   local dx, dy = self.input:get('move')
-  print(dx, dy)
   x = x + (dx * speed * dt)
   y = y + (dy * speed * dt)
   
@@ -80,7 +79,7 @@ end
 -- enemy
 local Enemy = class('Enemy', Sprite)
 function Enemy:initialize(x, y)
-  self.color = {0, 0, 255}
+  self.color = {140/255, 60/255, 60/255}
   self.width = 32
   self.height = 32
   self.x = x
@@ -104,7 +103,7 @@ end
 -- movable block
 local Block = class('Block', Sprite)
 function Block:initialize(x, y)
-  self.color = {40, 40, 40}
+  self.color = {200/255, 200/255, 200/255}
   self.width = 32
   self.height = 32
   self.x = x
@@ -172,7 +171,8 @@ function love.load()
 
   -- nearest neightbor & full-screen
   love.graphics.setDefaultFilter( 'nearest', 'nearest' )
-  --love.window.setFullscreen(true)
+  love.window.setFullscreen(true)
+  love.graphics.setBackgroundColor({150/255, 150/255, 150/255})
   
   -- prepare simple AABB collision world w/ cell size
   world = bump.newWorld(64)
