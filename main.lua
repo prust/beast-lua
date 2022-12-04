@@ -8,8 +8,8 @@ if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
 end
 
 -- game variables
-local player_speed = 400
-local beast_speed = 150
+local player_speed = 300-- 400
+local beast_speed = 100 -- 150
 local grid_size = 32
 local players = {}
 local blocks = {}
