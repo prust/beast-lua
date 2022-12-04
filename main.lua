@@ -80,8 +80,6 @@ function Player:initialize(x, y, input, color)
   self.height = grid_size
   self.x = x
   self.y = y
-  self.dx = 0
-  self.dy = 0
   Sprite.initialize(self)
 end
 
@@ -97,9 +95,9 @@ function Player:update(dt)
     y = y + (dy * player_speed * dt)
   end
 
-  -- user just stopped moving in this dimension
-  -- snap to the grid
-  if dx == 0 and self.dx ~= 0 then
+  -- user is moving slower in this dimension
+  -- so snap to the grid
+  if math.abs(dx) < 0.5 then
     local dx = x % grid_size
     if dx < (grid_size/2) then
       x = x - dx
@@ -107,7 +105,7 @@ function Player:update(dt)
       x = x + (grid_size - dx)
     end
   end
-  if dy == 0 and self.dy ~= 0 then
+  if math.abs(dy) < 0.5 then
     local dy = y % grid_size
     if dy < (grid_size/2) then
       y = y - dy
@@ -115,9 +113,6 @@ function Player:update(dt)
       y = y + (grid_size - dy)
     end
   end
-
-  self.dx = dx
-  self.dy = dy
   
   self:push(nil, x, y)
 end
