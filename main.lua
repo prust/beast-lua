@@ -381,8 +381,18 @@ function love.load()
 
   num_lives = num_players * 2
 
+  -- prepare simple AABB collision world w/ cell size
+    -- nearest neightbor & full-screen
+  love.graphics.setDefaultFilter( 'nearest', 'nearest' )
+  love.window.setFullscreen(true)
+  love.mouse.setVisible(false)
+  love.graphics.setBackgroundColor({150/255, 150/255, 150/255})
+  
+  world = bump.newWorld(64)
+  generateBlocks()
   for i=1, num_players do
-    table.insert(players, Player:new(0, (i-1) * grid_size, baton.new({
+    local x, y = findEmptyGridSquare()
+    table.insert(players, Player:new(x, y, baton.new({
       controls = {
         move_left = {'key:a', 'axis:leftx-', 'button:dpleft'},
         move_right = {'key:d', 'axis:leftx+', 'button:dpright'},
@@ -399,19 +409,13 @@ function love.load()
     }), player_colors[i]))
   end
 
-  -- nearest neightbor & full-screen
-  love.graphics.setDefaultFilter( 'nearest', 'nearest' )
-  love.window.setFullscreen(true)
-  love.mouse.setVisible(false)
-  love.graphics.setBackgroundColor({150/255, 150/255, 150/255})
+
   
-  -- prepare simple AABB collision world w/ cell size
-  world = bump.newWorld(64)
   for i = 1, #players do
     addSprite(players[i])
   end
   
-  generateBlocks()
+  
   spawnEnemies()
 end
 
