@@ -1,3 +1,18 @@
+-- In Real Life version: use scrabble tiles, flipped over
+-- use "O" tiles for static blocks
+-- use Carcassonne meeples for players and black ones for Beasts
+-- Start with coop lives -- 3 x # players
+-- Level | # Beasts
+-- 1     | 1
+-- 2     | 1
+-- 3     | 1* (Super)
+-- 4     | 2
+-- 5     | 2
+-- 6     | 1*
+-- 7     | 3
+-- 8     | 3
+-- 9     | 1*
+
 local bump = require "lib/bump"
 local class = require "lib/middleclass"
 local vector = require "lib/vector"
