@@ -8,7 +8,6 @@ if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
 end
 
 -- game variables
-local is_paused = false
 local speed = 256
 local players = {}
 local blocks = {}
@@ -184,7 +183,6 @@ function love.load()
 end
 
 function love.update(dt)
-  if is_paused then return end
   for i = 1, #players do
     players[i]:update(dt)
   end
