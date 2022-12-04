@@ -15,6 +15,13 @@ local players = {}
 local blocks = {}
 local enemies = {}
 local num_lives
+local player_colors = {
+  {140/255, 60/255, 140/255},
+  {62/255, 98/255, 187/255},
+  {62/255, 187/255, 66/255},
+  {187/255, 166/255, 62/255},
+  {62/255, 187/255, 183/255}
+}
 
 -- generic drawable sprite (for prototyping, just a filled rect)
 local Sprite = class('Sprite')
@@ -66,9 +73,9 @@ end
 
 -- Playable Player
 local Player = class('Player', Sprite)
-function Player:initialize(x, y, input)
+function Player:initialize(x, y, input, color)
   self.input = input
-  self.color = {140/255, 60/255, 140/255}
+  self.color = color
   self.width = grid_size
   self.height = grid_size
   self.x = x
@@ -292,7 +299,7 @@ function love.load()
       deadzone = 0.2,
       squareDeadzone = true, -- helps w/ player grid snapping when transitioning from diagonal to vert/horiz movement
       joystick = joysticks[i]
-    })))
+    }), player_colors[i]))
   end
 
   -- nearest neightbor & full-screen
