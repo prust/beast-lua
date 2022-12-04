@@ -24,13 +24,11 @@ function Sprite:draw()
 end
 
 function Sprite:push(other, x, y)
-  local actualX, actualY, cols, len = world:move(self, x, y, function(item, other)
+  local actualX, actualY, cols, len = world:check(self, x, y, function(item, other)
     return "cross"
   end)
-
-  self.x = x
-  self.y = y
   
+  local success = true
   for i=1, len do
     local col = cols[i]
     if col.other ~= other then
@@ -49,9 +47,20 @@ function Sprite:push(other, x, y)
         other_y = other_y - grid_size -- self.y - col.other.height
       end
       
-      col.other:push(self, other_x, other_y)
+      if not col.other:push(self, other_x, other_y) then
+        success = false
+      end
     end
   end
+
+  if success then
+    actualX, actualY = world:move(self, x, y, function(item, other)
+      return "cross"
+    end) 
+    self.x = actualX
+    self.y = actualY 
+  end
+  return success
 end
 
 -- Playable Character
@@ -129,6 +138,27 @@ function Enemy:update(dt)
   self.y = actualY
 end
 
+function Enemy:push(other, x, y)
+  -- *check* if there would be a collision
+  local actualX, actualY, cols, len = world:check(self, x, y, function(item, other)
+    return "cross"
+  end)
+  
+  -- we get squished if there would've been a collision
+  -- TODO: we should probably check that it's not a player on the other side...
+  if #cols ~= 0 then
+    local ix
+    for i=1, #enemies do
+      if enemies[i] == self then
+        ix = i
+      end
+    end
+    table.remove(enemies, ix)
+    world:remove(self)
+  end
+  return false
+end
+
 -- movable block
 local Block = class('Block', Sprite)
 function Block:initialize(x, y)
@@ -202,6 +232,7 @@ function love.load()
   -- nearest neightbor & full-screen
   love.graphics.setDefaultFilter( 'nearest', 'nearest' )
   love.window.setFullscreen(true)
+  love.mouse.setVisible(false)
   love.graphics.setBackgroundColor({150/255, 150/255, 150/255})
   
   -- prepare simple AABB collision world w/ cell size
