@@ -166,8 +166,20 @@ function Enemy:initialize(x, y)
 end
 
 function Enemy:update(dt)
-  -- TODO: make enemies move towards *closest* player, not *first* player
-  local dir = vector(players[1].x - self.x, players[1].y - self.y)
+  local nearest_player = nil
+  local nearest_dist = 200 * grid_size
+  for i = 1, #players do
+    local dx = math.abs(players[i].x - self.x)
+    local dy = math.abs(players[i].y - self.y)
+    -- simple "nearest" formulation (not accurate, I know)
+    local dist = dx + dy
+    if dist < nearest_dist then
+      nearest_player = players[i]
+      nearest_dist = dist
+    end
+  end
+
+  local dir = vector(nearest_player.x - self.x, nearest_player.y - self.y)
   dir:normalizeInplace()
   dir = dir * beast_speed * dt
   local x = self.x + dir.x
