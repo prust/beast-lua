@@ -8,7 +8,9 @@ if os.getenv("LOCAL_LUA_DEBUGGER_VSCODE") == "1" then
 end
 
 -- game variables
-local speed = 256
+local player_speed = 400
+local beast_speed = 150
+local grid_size = 32
 local players = {}
 local blocks = {}
 local enemies = {}
@@ -36,15 +38,15 @@ function Sprite:push(other, x, y)
       local other_y = col.other.y
       
       if col.normal.x == -1 then
-        other_x = other_x + 32 -- self.x + self.width
+        other_x = other_x + grid_size -- self.x + self.width
       elseif col.normal.x == 1 then
-        other_x = other_x - 32 -- self.x - col.other.width
+        other_x = other_x - grid_size -- self.x - col.other.width
       end
       
       if col.normal.y == -1 then
-        other_y = other_y + 32 -- self.y + self.height
+        other_y = other_y + grid_size -- self.y + self.height
       elseif col.normal.y == 1 then
-        other_y = other_y - 32 -- self.y - col.other.height
+        other_y = other_y - grid_size -- self.y - col.other.height
       end
       
       col.other:push(self, other_x, other_y)
@@ -57,10 +59,12 @@ local Character = class('Character', Sprite)
 function Character:initialize(x, y, input)
   self.input = input
   self.color = {140/255, 60/255, 140/255}
-  self.width = 32
-  self.height = 32
+  self.width = grid_size
+  self.height = grid_size
   self.x = x
   self.y = y
+  self.dx = 0
+  self.dy = 0
   Sprite.initialize(self)
 end
 
@@ -69,8 +73,34 @@ function Character:update(dt)
   local x = self.x
   local y = self.y
   local dx, dy = self.input:get('move')
-  x = x + (dx * speed * dt)
-  y = y + (dy * speed * dt)
+  
+  -- user is moving
+  if dx ~= 0 or dy ~= 0 then
+    x = x + (dx * player_speed * dt)
+    y = y + (dy * player_speed * dt)
+  end
+
+  -- user just stopped moving in this dimension
+  -- snap to the grid
+  if dx == 0 and self.dx ~= 0 then
+    local dx = x % grid_size
+    if dx < (grid_size/2) then
+      x = x - dx
+    else
+      x = x + (grid_size - dx)
+    end
+  end
+  if dy == 0 and self.dy ~= 0 then
+    local dy = y % grid_size
+    if dy < (grid_size/2) then
+      y = y - dy
+    else
+      y = y + (grid_size - dy)
+    end
+  end
+
+  self.dx = dx
+  self.dy = dy
   
   self:push(nil, x, y)
 end
@@ -79,8 +109,8 @@ end
 local Enemy = class('Enemy', Sprite)
 function Enemy:initialize(x, y)
   self.color = {140/255, 60/255, 60/255}
-  self.width = 32
-  self.height = 32
+  self.width = grid_size
+  self.height = grid_size
   self.x = x
   self.y = y
   Sprite.initialize(self)
@@ -90,7 +120,7 @@ function Enemy:update(dt)
   -- TODO: make enemies move towards *closest* player, not *first* player
   local dir = vector(players[1].x - self.x, players[1].y - self.y)
   dir:normalizeInplace()
-  dir = dir * speed * dt
+  dir = dir * beast_speed * dt
   local x = self.x + dir.x
   local y = self.y + dir.y
 
@@ -103,8 +133,8 @@ end
 local Block = class('Block', Sprite)
 function Block:initialize(x, y)
   self.color = {200/255, 200/255, 200/255}
-  self.width = 32
-  self.height = 32
+  self.width = grid_size
+  self.height = grid_size
   self.x = x
   self.y = y
   Sprite.initialize(self)
@@ -118,8 +148,8 @@ end
 function generateBlocks()
   local win_width = love.graphics.getWidth()
   local win_height = love.graphics.getHeight()
-  local num_blocks_x = win_width / 32
-  local num_blocks_y = win_height / 32
+  local num_blocks_x = win_width / grid_size
+  local num_blocks_y = win_height / grid_size
   
   local block
   local block_ix = 1
@@ -129,11 +159,11 @@ function generateBlocks()
       if x > 1 or y > 2 then
         if math.random(6) == 1 then
           if math.random(20) == 1 then
-            enemy = Enemy:new((x - 1) * 32, (y - 1) * 32)
+            enemy = Enemy:new((x - 1) * grid_size, (y - 1) * grid_size)
             table.insert(enemies, enemy)
             addSprite(enemy)
           else
-            block = Block:new((x - 1) * 32, (y - 1) * 32)
+            block = Block:new((x - 1) * grid_size, (y - 1) * grid_size)
             table.insert(blocks, block)
             addSprite(block)
           end
@@ -152,7 +182,7 @@ function love.load()
   end
 
   for i=1, num_players do
-    table.insert(players, Character:new(0, (i-1) * 32, baton.new({
+    table.insert(players, Character:new(0, (i-1) * grid_size, baton.new({
       controls = {
         move_left = {'key:a', 'axis:leftx-', 'button:dpleft'},
         move_right = {'key:d', 'axis:leftx+', 'button:dpright'},
@@ -164,6 +194,7 @@ function love.load()
         move = {'move_left', 'move_right', 'move_up', 'move_down'},
       },
       deadzone = 0.2,
+      squareDeadzone = true, -- helps w/ player grid snapping when transitioning from diagonal to vert/horiz movement
       joystick = joysticks[i]
     })))
   end
