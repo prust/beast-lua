@@ -14,6 +14,7 @@ local grid_size = 32
 local players = {}
 local blocks = {}
 local enemies = {}
+local num_lives
 
 -- generic drawable sprite (for prototyping, just a filled rect)
 local Sprite = class('Sprite')
@@ -63,9 +64,9 @@ function Sprite:push(other, x, y)
   return success
 end
 
--- Playable Character
-local Character = class('Character', Sprite)
-function Character:initialize(x, y, input)
+-- Playable Player
+local Player = class('Player', Sprite)
+function Player:initialize(x, y, input)
   self.input = input
   self.color = {140/255, 60/255, 140/255}
   self.width = grid_size
@@ -77,7 +78,7 @@ function Character:initialize(x, y, input)
   Sprite.initialize(self)
 end
 
-function Character:update(dt)
+function Player:update(dt)
   self.input:update(dt)
   local x = self.x
   local y = self.y
@@ -112,6 +113,38 @@ function Character:update(dt)
   self.dy = dy
   
   self:push(nil, x, y)
+end
+
+function Player:dieAndRespawn()
+  num_lives = num_lives - 1
+  if num_lives == 0 then
+    love.event.quit()
+  end
+
+  -- TODO: store the *initial* num_blocks x/y and use that always
+  local win_width = love.graphics.getWidth()
+  local win_height = love.graphics.getHeight()
+  local num_blocks_x = win_width / grid_size
+  local num_blocks_y = win_height / grid_size
+  
+  local x, y, items, len_items
+  x = math.random(num_blocks_x) * 32
+  y = math.random(num_blocks_y) * 32
+  items, len_items = world:queryRect(x, y, grid_size, grid_size)
+
+  -- TODO: fix this DRY; I tried to do a do-while, but it failed
+  while (len_items > 0)
+  do
+    print("found collisions", len_items, x, y)
+    x = math.random(num_blocks_x) * 32
+    y = math.random(num_blocks_y) * 32
+    items, len_items = world:queryRect(x, y, grid_size, grid_size)
+  end  
+  print("no collisions at", x, y)
+  
+  world:update(self, x, y)
+  self.x = x
+  self.y = y
 end
 
 -- enemy
@@ -157,6 +190,14 @@ function Enemy:update(dt)
   local actualX, actualY, cols, len = world:move(self, x, y, function(item, other)
     return "slide"
   end)
+
+  for i=1, len do
+    local col = cols[i]
+    if col.other:isInstanceOf(Player) then
+      col.other:dieAndRespawn()
+    end
+  end
+
   self.x = actualX
   self.y = actualY
 end
@@ -234,8 +275,10 @@ function love.load()
     num_players = 1 -- if there are no joysticks, fallback to one keyboard/mouse player
   end
 
+  num_lives = num_players * 2
+
   for i=1, num_players do
-    table.insert(players, Character:new(0, (i-1) * grid_size, baton.new({
+    table.insert(players, Player:new(0, (i-1) * grid_size, baton.new({
       controls = {
         move_left = {'key:a', 'axis:leftx-', 'button:dpleft'},
         move_right = {'key:d', 'axis:leftx+', 'button:dpright'},
